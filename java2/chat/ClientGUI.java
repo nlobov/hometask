@@ -4,6 +4,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.FileWriter;
+import java.io.IOException;
 
 public class ClientGUI extends JFrame  implements ActionListener, Thread.UncaughtExceptionHandler  {
 
@@ -15,8 +17,8 @@ public class ClientGUI extends JFrame  implements ActionListener, Thread.Uncaugh
     private final JTextField tfIPAddress = new JTextField("127.0.0.1");
     private final JTextField tfPort = new JTextField("8189");
     private final JCheckBox cbAlwaysOnTop = new JCheckBox("Always on top");
-    private final JTextField tfLogin = new JTextField("ivan");
-    private final JPasswordField tfPassword = new JPasswordField("123");
+    private final JTextField tfLogin = new JTextField("login");
+    private final JPasswordField tfPassword = new JPasswordField("password");
     private final JButton btnLogin = new JButton("Login");
 
     private final JPanel panelBottom = new JPanel(new BorderLayout());
@@ -48,6 +50,9 @@ public class ClientGUI extends JFrame  implements ActionListener, Thread.Uncaugh
         String[] users = {"user1", "user2", "user3", "user4", "user5", "User_with_a_very_long_name" };
         userList.setListData(users);
         scrollUsers.setPreferredSize(new Dimension(100, 0));
+        // вдобавляем ActionListener на кнопку и сообщение
+        btnSend.addActionListener(this);
+        tfMessage.addActionListener(this);
 
         panelTop.add(tfIPAddress);
         panelTop.add(tfPort);
@@ -67,7 +72,9 @@ public class ClientGUI extends JFrame  implements ActionListener, Thread.Uncaugh
         add(scrollUsers, BorderLayout.EAST);
         setVisible(true);
     }
-    /*
+    /* Домашнее задание курса java2 по уроку 4 "Продвинутые вопросы создания графического интерфейса"
+       dated Jul 27, 2019
+
         Отправлять сообщения в лог по нажатию кнопки или по нажатию клавиши Enter.
         Создать лог в файле (показать комментарием, где и как Вы планируете писать сообщение в файловый журнал).
         Прочитать методичку к следующему уроку
@@ -78,8 +85,26 @@ public class ClientGUI extends JFrame  implements ActionListener, Thread.Uncaugh
         Object src = e.getSource();
         if (src == cbAlwaysOnTop) {
             setAlwaysOnTop(cbAlwaysOnTop.isSelected());
-        } else {
+        }
+        //отправлем сообщение
+        else if (src == btnSend || src == tfMessage){
+            sendMsg();
+        }
+        else {
             throw new RuntimeException("Unknown source: " + src);
+        }
+    }
+    // метод отправляющий сообщение и записывающий лог в файл
+    private void sendMsg(){
+        String msg = tfMessage.getText() + "\n";
+        tfMessage.setText(null);
+        tfMessage.grabFocus();
+        log.append(msg);
+        try (FileWriter out = new FileWriter("chat.log", true)){
+            out.write(msg);
+            out.flush();
+        } catch (IOException e){
+            throw new RuntimeException(e);
         }
     }
 
