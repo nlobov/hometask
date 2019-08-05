@@ -9,10 +9,13 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.Vector;
 
 public class ChatServer implements ServerSocketThreadListener, SocketThreadListener {
 
     private ServerSocketThread server;
+    private final Vector<SocketThread> clients = new Vector<>();
+
     private final DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss: ");
 
     public void start(int port) {
@@ -81,16 +84,21 @@ public class ChatServer implements ServerSocketThreadListener, SocketThreadListe
     @Override
     public synchronized void onSocketThreadStop(SocketThread thread) {
         putLog("socketthread stop");
+        clients.remove(thread);
     }
 
     @Override
     public synchronized void onSocketThreadReady(SocketThread thread, Socket socket) {
         putLog("socketthread ready");
+        clients.add(thread);
     }
 
     @Override
     public synchronized void onReceiveString(SocketThread thread, Socket socket, String value) {
         thread.sendMessage("echo: " + value);
+        for (int i = 0; i < clients.size() ; i++) {
+            clients.get(i).sendMessage(value);
+        }
     }
 
     @Override
