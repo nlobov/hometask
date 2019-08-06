@@ -1,5 +1,9 @@
 package ru.geekbrains.java2.chat.client;
 
+import ru.geekbrains.java2.chat.common.Library;
+import ru.geekbrains.java2.network.SocketThread;
+import ru.geekbrains.java2.network.SocketThreadListener;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -7,12 +11,67 @@ import java.awt.event.ActionListener;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.Socket;
-import ru.geekbrains.java2.network.SocketThread;
-import ru.geekbrains.java2.network.SocketThreadListener;
 
+/*
+1 ещё раз быстро пройтись по той части кода, которая отвечает за сетевое взаимодействие,
+пояснить коротко, что от чего зависит
+
+2 подробнее рассказать про оператор synchronized
+
+3 как работает метод sendMessage внутри SocketThread
+
+4 Почему DataInputStream, а не просто InputStream
+
+5 в основном проблема с пониманием интерфейсов и как ими пользоваться (если честно то и ООП в целом)
+
+6 Сложно перестроиться с процедурного программирования
+
+7 зачем классу КлиентГУИ переопределять методы СокетТредЛистнера, в то время, как они уже переопределены
+в классе ЧатСервер
+
+8 ещё раз о цикле отправки/приёма сообщения
+
+9 Сервер и клиент создают по сокету и общаются через них? то есть сервер что то отправил в свой сокет,
+тот отправляет что то в сокет клиента итд?
+
+10 с каждым сокетом и серверсокетом работа ведётся в отдельном потоке?
+
+11 серверсокет.сетСоТаймаут нам нужен только для исключения и как следствие выхода из цикла?
+и что будет выполняться после континью (строка 34 в сокетТреде)
+
+12 в серверГУИ в экшнПефомд мы задаём номер порта 8189 - это просто случайный свободный порт?
+
+14 СерверСокетТред строка 31 сокет = серверСокет.эксепт() этой строкой, как я понимаю, мы заставляем сервер
+ждать сокет клиента, но не понял, указываем ли мы где то сокету клиента на сокет сервера
+(в двух словах - где связываются два сокета)
+
+15 Как стало ясно - метод эксепт вешает весь серверСокет пока не поймает клиентский Сокет.
+А если к разным портам одного и того же серверСокет будут добавлены слушатели? как этот момент будет решаться
+
+16 Мы синхронайзд добавили на конкретный порт на разные сокеты. а если будет с разных портов поступать?
+и возможно ли это в принципе?
+
+17 почему в конструкторе СерверСокетТред передаются именно такие параметры, листнер особенно
+
+18 Листнеры - почему именно такие параметры передаются в методах? как понять что нужно передать?
+
+19 при использовании потоков всегда нужно использовать интерфейсы? или только при использовании потоков
+в работе серверов, чат-серверов?
+
+20 как выделить методы, которые нужно использовать в интерфейсе?
+
+21 почему методы сокета мы засинхронили, а серверсокета нет?
+
+22 зачем в сокетТред при закрытии на 59 строке вызывать сокет.клоуз, ведь ранее используется интеррапт,
+который приводит к закрытию сокета в 36й строке, не приведёт ли это к попытке закрыть закрытый сокет?
+
+23 зачем синхронизировать методы сокеттредлистнера? что будет если этого не сделать?
+
+24 аналогично для сокеттреда - что будет если клоуз и сендмессадж будут не синхронизированы?
+* */
 
 public class ClientGUI extends JFrame implements ActionListener, Thread.UncaughtExceptionHandler, SocketThreadListener {
-    private static final int WIDTH = 400;
+    private static final int WIDTH = 600;
     private static final int HEIGHT = 300;
 
     private final JTextArea log = new JTextArea();
@@ -60,7 +119,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         btnLogin.addActionListener(this);
         btnSend.addActionListener(this);
         tfMessage.addActionListener(this);
-        btnLogin.addActionListener(this);
+        btnDisconnect.addActionListener(this);
 
         panelTop.add(tfIPAddress);
         panelTop.add(tfPort);
@@ -71,6 +130,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         panelBottom.add(btnDisconnect, BorderLayout.WEST);
         panelBottom.add(tfMessage, BorderLayout.CENTER);
         panelBottom.add(btnSend, BorderLayout.EAST);
+        panelBottom.setVisible(false);
 
         add(panelTop, BorderLayout.NORTH);
         add(scrollLog, BorderLayout.CENTER);
@@ -104,6 +164,8 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
             sendMessage();
         } else if (src == btnLogin) {
             connect();
+        } else if (src == btnDisconnect) {
+            socketThread.close();
         } else {
             throw new RuntimeException("Unknown source: " + src);
         }
@@ -157,17 +219,23 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
 
     @Override
     public void onSocketThreadStart(SocketThread thread, Socket socket) {
-        putLog("socket start");
+        putLog("Connected...");
     }
 
     @Override
     public void onSocketThreadStop(SocketThread thread) {
-        putLog("socket stop");
+        putLog("Connection Lost");
+        panelBottom.setVisible(false);
+        panelTop.setVisible(true);
     }
 
     @Override
     public void onSocketThreadReady(SocketThread thread, Socket socket) {
-        putLog("socket ready");
+        panelBottom.setVisible(true);
+        panelTop.setVisible(false);
+        String login = tfLogin.getText();
+        String password = new String(tfPassword.getPassword());
+        thread.sendMessage(Library.getAuthRequest(login, password));
     }
 
     @Override
