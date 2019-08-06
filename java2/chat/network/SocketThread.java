@@ -55,6 +55,7 @@ public class SocketThread extends Thread {
 
     public synchronized void close() {
         interrupt();
+        // не закрываем ли закрытый поток после интеррапта в run()?
         try {
             socket.close();
         } catch (IOException e) {
@@ -62,4 +63,3 @@ public class SocketThread extends Thread {
         }
     }
 }
-
