@@ -19,6 +19,7 @@ public class ChatServer implements ServerSocketThreadListener, SocketThreadListe
     private final DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss: ");
     private final ChatServerListener listener;
     private Vector<SocketThread> clients = new Vector<>();
+    private boolean ChatServerStatus;
 
     public ChatServer(ChatServerListener listener) {
         this.listener = listener;
@@ -26,14 +27,14 @@ public class ChatServer implements ServerSocketThreadListener, SocketThreadListe
 
     public void start(int port) {
         if (server != null && server.isAlive())
-            System.out.println("Server is already running");
+            putLog("Server is already running");
         else
             server = new ServerSocketThread(this, "Chat server", port, 1000);
     }
 
     public void stop() {
         if (server == null || !server.isAlive())
-            System.out.println("Server not running");
+            putLog("Server not running");
         else
             server.interrupt();
     }
@@ -50,13 +51,18 @@ public class ChatServer implements ServerSocketThreadListener, SocketThreadListe
     @Override
     public void onServerSocketThreadStart(ServerSocketThread thread) {
         putLog("Server thread started");
+        ChatServerStatus = true;
         SqlClient.connect();
+        sendToAuthorizedClients("Chat Server started. You can send messages");
     }
 
     @Override
     public void onServerSocketThreadStop(ServerSocketThread thread) {
         putLog("Server thread stopped");
+        sendToAuthorizedClients("Chat Server stopped. You can't send messages");
+        ChatServerStatus = false;
         SqlClient.disconnect();
+
     }
 
     @Override
@@ -73,6 +79,7 @@ public class ChatServer implements ServerSocketThreadListener, SocketThreadListe
     public void onSocketAccepted(ServerSocketThread thread, Socket socket) {
         String name = "SocketThread" + socket.getInetAddress() + ":" + socket.getPort();
         new ClientThread(this, name, socket);
+
     }
 
     @Override
@@ -102,10 +109,15 @@ public class ChatServer implements ServerSocketThreadListener, SocketThreadListe
     @Override
     public synchronized void onReceiveString(SocketThread thread, Socket socket, String value) {
         ClientThread client = (ClientThread) thread;
+        if (ChatServerStatus) {
         if (client.isAuthorized()) {
-            handleAuthMessage(client, value);
-        } else {
+            handleAuthMessage(client, Library.getMsgFormat(client.getNik(), value));
+        }  else {
             handleNonAuthMessage(client, value);
+        }
+        }
+        else {
+             client.close();
         }
     }
 
