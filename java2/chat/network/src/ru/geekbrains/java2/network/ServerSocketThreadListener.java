@@ -13,7 +13,3 @@ public interface ServerSocketThreadListener {
 
     void onServerSocketThreadException(ServerSocketThread thread, Exception e);
 }
-
-
-
-

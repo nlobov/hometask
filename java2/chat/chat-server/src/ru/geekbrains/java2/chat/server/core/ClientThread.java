@@ -7,12 +7,17 @@ import ru.geekbrains.java2.network.SocketThreadListener;
 import java.net.Socket;
 
 public class ClientThread extends SocketThread {
-    private String nickname;
 
+    private String nickname;
+    private boolean isReconnected;
     private boolean isAuthorized;
 
     public ClientThread(SocketThreadListener listener, String name, Socket socket) {
         super(listener, name, socket);
+    }
+
+    public String getNickname() {
+        return nickname;
     }
 
     public boolean isAuthorized() {
@@ -35,7 +40,12 @@ public class ClientThread extends SocketThread {
         close();
     }
 
-    String getNik() {
-        return nickname;
+    void reconnect() {
+        isReconnected = true;
+        close();
+    }
+
+    public boolean isReconnected() {
+        return isReconnected;
     }
 }
