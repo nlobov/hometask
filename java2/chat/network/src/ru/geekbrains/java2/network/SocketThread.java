@@ -25,6 +25,8 @@ public class SocketThread extends Thread {
             out = new DataOutputStream(socket.getOutputStream());
             listener.onSocketThreadReady(this, socket);
             while (!isInterrupted()) {
+                // на будущее, чтобы было ещё лучше, сюда надо придумать что то неблокирующее
+                // или с возмонжостью установки таймаута
                 String msg = in.readUTF();
                 listener.onReceiveString(this, socket, msg);
             }
